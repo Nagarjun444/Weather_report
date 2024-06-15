@@ -66,10 +66,40 @@ void loop()
  client.println("Content-Type: text/html");
  client.println("");
  client.println("<!DOCTYPE HTML>");
+ //client.println("<html lang="en">");
+ client.println("<head>");
  client.println("<html>");
+ //client.println("<meta charset="UTF-8">");
+ //client.println("<meta name="viewport" content="width=device-width, initial-scale=1.0">");
+ 
+client.println("<title>nodemcu_project</title>");
+client.println("</head>");
+client.println("<body>");
+client.println("<h1>SMART_OLED</h1>");
+client.println("<button class=\"button\" \"on-button\">wifi on</button>");
+client.println("<button class=\"button\" \"off-button\">wifi off</button> <br> <br>");
+client.println("<input id=\"userInput\" placeholder=\"Enter your Quote\"> <br> <br>");
+client.println("<button onclick=\"myfunction()\">Give Hit</button>");
+client.println("<h1 id=\"message\"></h1>");
+client.println("<button class=\"emoji\"> &#128512;</button>");
+client.println("<button class=\"emoji\"> &#128517;</button>");
+client.println("<button class=\"emoji\"> &#128522;</button>");
+client.println("<button class=\"emoji\"> &#128525;</button>");
+client.println("<button class=\"emoji\"> &#128542;</button>");
+client.println("<script>");
+//client.println("function myfunction(){let userInput= document.querySelector("#userInput");let message=document.querySelector("#message");message.innerHTML ="Your Quote is Displayed as like this," + userInput.value;}");
+client.println("</script>");
+client.println("</body>");
+client.println("h1{color:red}");
+client.println("<style>");
+client.println(".button {padding: 50px 50px;font-size: 48px;margin: 5px;cursor: pointer;}");
+client.println(".on-button {background-color: green;color: white; }");
+client.println(".off-button {background-color: red;color: white;}");
+client.println(" body {width: 100%;height: 100vh;margin: 0;background-color: #FFD1DC;color: #000000;font-family: Cursive;font-size: 16px;background-repeat: no-repeat;background-size: 100% 100%;text-align:center;}");
+client.println(".emoji{font-size: 100px;}");
+client.println(" </style>");
 
  client.print("LED: ");
-
  if(value == HIGH)
  {
    client.print("ON");
@@ -78,6 +108,10 @@ void loop()
  {
    client.print("OFF");
  }
+
+
+
+ 
  client.println("<br><br>");
  client.println("<a href=\"/LED=ON\"\"><button>ON</button></a>");
  client.println("<a href=\"/LED=OFF\"\"><button>OFF</button></a><br />");
