@@ -1,0 +1,259 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
+#include <Hash.h>
+#include <LittleFS.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+
+const char* ssid = "Nagarjuna";
+const char* password = "123456789";
+
+// Parameter to save the input string
+const char* PARAM_INPUT = "inputString";
+
+// GPIO for LED
+int LED = 2; // LED connected to D4 (GPIO2)
+
+// Create an instance of the server
+AsyncWebServer server(80);
+
+// Variable to store the input data
+String inputData;
+
+int d1,d2,d3=1;
+
+char webpage[] PROGMEM = R"=====(
+<!DOCTYPE HTML>
+      <html>
+      <head>
+        <title>NodeMCU Project</title>
+        <style>
+          .button {padding: 10px 20px; font-size: 24px; margin: 5px; cursor: pointer;}
+          .on-button {background-color: green; color: white;}
+          .off-button {background-color: red; color: white;}
+          body {width: 100%;height: 100vh;margin: 0;background-color: #FFD1DC;color: #000000;font-family: Cursive;font-size: 16px;background-repeat: no-repeat;background-size: 100% 100%;text-align:center;}
+
+         // body {text-align: center; font-family: Arial, sans-serif;}
+          .emoji{font-size: 100px;}
+        </style>
+      </head>
+      <body>
+        <h1>OLED</h1>
+        <input id="userInput" placeholder="Enter your Quote"><br><br>
+        <button onclick="sendData()">Submit</button>
+        <h1 id="message"></h1>
+        <button class="button on-button" onclick="location.href='/LED=ON'">LED ON</button>
+        <button class="button off-button" onclick="location.href='/LED=OFF'">LED OFF</button>
+        <button class="emoji">&#128512;</button>
+        <button class="emoji">&#128517;</button>
+        <button class="emoji">&#128522;</button>
+        <button class="emoji">&#128525;</button>
+        <button class="emoji">&#128542;</button>
+        <script>
+          function sendData() {
+            let userInput = document.getElementById('userInput').value;
+            let xhr = new XMLHttpRequest();
+            xhr.open('GET', '/get?inputString=' + encodeURIComponent(userInput), true);
+            xhr.send();
+            document.getElementById('message').innerText = 'Your Quote is: ' + userInput;
+          }
+        </script>
+      </body>
+      </html>
+
+)=====";
+ 
+
+//---------------------------setup---------------------------------------
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, LOW);
+
+  // Initialize LittleFS
+  if (!LittleFS.begin()) 
+  {
+    Serial.println("An error has occurred while mounting LittleFS");
+    return;
+  }
+  Serial.println("LittleFS mounted successfully");
+  // Connect to WiFi
+  Serial.print("Connecting to the Network");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+
+ 
+}
+
+
+
+
+///-------------------LOOP----------------------------------------------------------------
+void loop() 
+{
+   // Route to serve the HTML page
+  server.on("/", [](AsyncWebServerRequest *request)
+  {
+    request->send_P(200, "text/html", webpage);
+  });
+
+  // Handle the data received from the HTML input
+  server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request) 
+  {
+    if (request->hasParam(PARAM_INPUT))
+    {
+      inputData = request->getParam(PARAM_INPUT)->value();
+      writeFile(LittleFS, "/inputString.txt", inputData.c_str());
+      request->send_P(200, "text/html", webpage);
+    } 
+    else 
+    {
+      request->send(400, "text/plain", "No data received");
+    }
+  });
+
+   // Handle LED ON
+  server.on("/LED=ON", HTTP_GET, [](AsyncWebServerRequest *request) 
+  {
+     digitalWrite(LED, HIGH);
+     d1=1;
+     request->send_P(200, "text/html", webpage);
+     Serial.println("LED ON-----------------");
+  });
+
+  // Handle LED OFF
+  server.on("/LED=OFF", HTTP_GET, [](AsyncWebServerRequest *request) 
+  {
+    digitalWrite(LED, LOW);
+    d1=0;
+    request->send_P(200, "text/html", webpage);
+    Serial.println("LED OFF-----------------");
+  });
+  
+  // Start server
+  server.begin();
+  Serial.println("HTTP server started");
+  
+
+
+  
+   if(d1 == 1)
+   {
+    Serial.println(" if part is enterd d1 is printed to the serial moniter");
+   // d1=0;
+   }
+   else if(d1 == 0)
+   {
+    d1=0;
+     Serial.println("else part is enterd d1 is printed to the serial moniter");
+   }
+  
+  // Read the file and print its contents to the Serial Monitor
+  String fileContent = readFile(LittleFS, "/inputString.txt");
+  if (fileContent.length() > 0)
+  {
+   //Serial.println("Content of /inputString.txt:");
+    Serial.println(fileContent);
+  }
+      delay(12000); // Print every 5 seconds
+      Weather_calling(); 
+}
+
+
+
+// Function to fetch weather data
+void Weather_calling() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;  // Declare an object of class HTTPClient
+    http.begin("http://api.weatherapi.com/v1/current.json?key=08ac3bf21ce7464a89461528240106&q=Bangalore&aqi=no");  // Specify request destination
+    int httpCode = http.GET(); // Send the request
+
+    if (httpCode > 0) 
+    { // Check the returning code
+      String payload = http.getString();   // Get the request response payload
+     // Serial.println(payload);             // Print the response payload
+      DynamicJsonDocument doc(4096); // Adjust the size based on your JSON response size
+      DeserializationError error = deserializeJson(doc, payload);
+
+      if (error) 
+      {
+        Serial.print("deserializeJson() failed: ");
+        Serial.println(error.c_str());
+        return;
+      }
+
+      JsonObject location = doc["location"];
+      const char* location_name = location["name"]; // "Bangalore"
+      Serial.print("This is location:");
+      Serial.println(location_name);
+      const char* location_region = location["region"]; // "Karnataka"
+      Serial.print("This is location_region:");
+      Serial.println(location_region);
+      const char* location_country = location["country"]; // "India"
+      Serial.print("This is location_country:");
+      Serial.println(location_country);
+      const char* location_tz_id = location["tz_id"]; // "Asia/Kolkata"
+      Serial.print("location_tz_id:");
+      Serial.println(location_tz_id);
+      const char* location_localtime = location["localtime"]; // "2024-06-01 12:03"
+      Serial.print("location_localtime:");
+      Serial.println(location_localtime);
+
+      JsonObject current = doc["current"];
+      const char* current_condition_text = current["condition"]["text"]; // "Partly cloudy"
+      Serial.print("current_condition_text:");
+      Serial.println(current_condition_text);
+      int current_humidity = current["humidity"]; // 59
+      Serial.print("current_humidity:");
+      Serial.println(current_humidity);
+      float current_feelslike_c = current["feelslike_c"]; // 30.3
+      Serial.print("current_feelslike_c:");
+      Serial.println(current_feelslike_c);
+    }
+    http.end(); // Close connection
+  }
+}
+
+void writeFile(fs::FS &fs, const char * path, const char * message) 
+{
+  File file = fs.open(path, "w");
+  if (!file) 
+  {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  if (file.print(message)) 
+  {
+    Serial.println("File written");
+  } 
+  else 
+  {
+    Serial.println("Write failed");
+  }
+  file.close();
+}
+
+String readFile(fs::FS &fs, const char * path) 
+{
+  File file = fs.open(path, "r");
+  if (!file) 
+  {
+    Serial.println("Failed to open file for reading");
+    return String();
+  }
+  String fileContent;
+  while (file.available()) 
+  {
+    fileContent += file.readStringUntil('\n');
+  }
+  file.close();
+  return fileContent;
+}
